@@ -174,6 +174,13 @@ export default function PlaceOrderScreen() {
             style={{ marginLeft: 8 }}
           />
         </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={20} color="#2563EB" />
+          <Text style={styles.backButtonText}>Back to Dashboard</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -244,7 +251,7 @@ const styles = StyleSheet.create({
   categoryGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    justifyContent: "space-between",
   },
   categoryButton: {
     borderWidth: 1,
@@ -316,6 +323,18 @@ const styles = StyleSheet.create({
   nextButtonDisabled: {
     backgroundColor: "#cbd5e1",
     opacity: 0.6,
+  },
+  backButton: {
+    marginTop: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  backButtonText: {
+    color: "#2563EB",
+    fontWeight: "700",
+    marginLeft: 8,
+    fontSize: 14,
   },
   nextButtonText: {
     color: "#ffffff",

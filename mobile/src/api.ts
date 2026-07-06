@@ -1,10 +1,71 @@
 import { Platform } from "react-native";
+import Constants from "expo-constants";
 
-// If you run the app on a physical device, replace the override below with your
-// development machine's local IP address, for example: http://192.168.1.100:4000/api/v1
+// If you run the app on a physical device, set your development machine's local IP
+// address here only if you cannot use `extra.apiBaseUrl` in app.json.
+// Example: http://192.168.1.100:4000/api/v1
+// NOTE: ensure this matches the backend host on your network.
 const PHYSICAL_DEVICE_API_BASE = "";
 
+const getRawExpoHost = () => {
+  const expoConfig = Constants.expoConfig as any;
+  const manifest2 = Constants.manifest2 as any;
+  const manifest = Constants.manifest as any;
+
+  return (
+    (expoConfig?.hostUri as string) ||
+    (manifest2?.hostUri as string) ||
+    (manifest?.hostUri as string) ||
+    (manifest2?.debuggerHost as string) ||
+    (manifest?.debuggerHost as string) ||
+    (manifest2?.bundleUrl as string) ||
+    (manifest?.bundleUrl as string) ||
+    null
+  );
+};
+
+const getHostFromExpoConstants = () => {
+  const rawHost = getRawExpoHost();
+  if (!rawHost || typeof rawHost !== "string") {
+    return null;
+  }
+
+  const normalized = rawHost
+    .trim()
+    .replace(/^.*@/, "")
+    .replace(/^[^/]+:\/\//, "")
+    .replace(/\/.*$/, "");
+
+  return normalized.split(/[:/]/)[0] || null;
+};
+
 const getApiBase = () => {
+  // Android emulator must use 10.0.2.2 to reach the host (this takes priority)
+  const androidEmulatorApiBase = "http://192.168.210.10:4000/api/v1";
+  if (Platform.OS === "android" && !Constants.isDevice) {
+    return androidEmulatorApiBase;
+  }
+
+  const expoConfig = Constants.expoConfig as any;
+  const manifest2 = Constants.manifest2 as any;
+  const manifest = Constants.manifest as any;
+  const explicitApiBase =
+    expoConfig?.extra?.apiBaseUrl ||
+    manifest2?.extra?.apiBaseUrl ||
+    manifest?.extra?.apiBaseUrl;
+
+  if (explicitApiBase) {
+    return explicitApiBase;
+  }
+
+  if (Constants.isDevice) {
+    const expoHost = getHostFromExpoConstants();
+    const isExpoTunnelHost = expoHost ? /(^|\.)exp\.host$|(^|\.)expo\.dev$|(^|\.)expo\.io$/i.test(expoHost) : false;
+    if (expoHost && !isExpoTunnelHost) {
+      return `http://${expoHost}:4000/api/v1`;
+    }
+  }
+
   if (PHYSICAL_DEVICE_API_BASE) {
     return PHYSICAL_DEVICE_API_BASE;
   }
@@ -15,17 +76,18 @@ const getApiBase = () => {
   }
 
   if (Platform.OS === "android") {
-    return "http://10.0.2.2:4000/api/v1";
+    return androidEmulatorApiBase;
   }
 
   return "http://localhost:4000/api/v1";
 };
 
 const API_BASE = getApiBase();
+console.log(`API base URL: ${API_BASE}`);
 
 export interface LoginResponse {
   token: string;
-  user: { id: string; role: string };
+  user: { id: string; role: string; name?: string; email?: string };
 }
 
 export type CourierDelivery = {
@@ -72,25 +134,75 @@ export type LabProofOfDelivery = {
 };
 
 async function req<T>(path: string, init: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(init.headers ?? {})
-    },
-    ...init
-  });
+  try {
+    const url = `${API_BASE}${path}`;
+    console.log(`Requesting ${url}`);
 
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(data?.message ?? "Request failed");
+    const res = await fetch(url, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(init.headers ?? {})
+      },
+      ...init
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data?.message ?? "Request failed");
+    }
+    return data as T;
+  } catch (error: any) {
+    throw new Error(`Network request failed to ${API_BASE}${path}: ${error?.message || error}`);
   }
-  return data as T;
 }
 
 export function loginPassword(email: string, password: string): Promise<LoginResponse> {
   return req("/auth/login/password", {
     method: "POST",
     body: JSON.stringify({ email, password })
+  });
+}
+
+export function loginBiometric(userIdentifier: string, biometricHash: string): Promise<LoginResponse> {
+  return req("/auth/login/biometric", {
+    method: "POST",
+    body: JSON.stringify({ userIdentifier, biometricHash })
+  });
+}
+
+export function registerUser(name: string, email: string, phone: string, password: string, role: string) {
+  return req<{ message: string; user: { id: string; role: string } }>("/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ name, email, phone, password, role })
+  });
+}
+
+export function resetPassword(email: string, newPassword: string) {
+  return req<{ message: string }>("/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ email, newPassword })
+  });
+}
+
+export function registerBiometric(userId: string, biometricHash: string) {
+  return req<{ success: boolean }>("/biometric/register", {
+    method: "POST",
+    body: JSON.stringify({ userId, biometricHash })
+  });
+}
+
+export function getUsers(token: string) {
+  return req<{ users: Array<{ id: string; name: string; email: string; role: string; phone?: string; biometric_registered: boolean; is_active: boolean }> }>("/users", {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function toggleUserActive(token: string, userId: string, isActive: boolean) {
+  return req<{ user: { id: string; is_active: boolean } }>(`/users/${userId}/status`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ isActive })
   });
 }
 
@@ -102,11 +214,12 @@ export function createDelivery(token: string, payload: CreateDeliveryRequest) {
   });
 }
 
-export function assignDelivery(token: string, deliveryId: string, courierId: string) {
+export function assignDelivery(token: string, deliveryId: string, courierId?: string) {
+  const body = courierId ? JSON.stringify({ courierId }) : undefined;
   return req<{ id: string; courierId: string; status: string }>(`/deliveries/${deliveryId}/assign`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ courierId })
+    ...(body ? { body } : {})
   });
 }
 

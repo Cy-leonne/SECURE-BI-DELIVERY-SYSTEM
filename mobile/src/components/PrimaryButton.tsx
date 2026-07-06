@@ -1,5 +1,6 @@
 import React from "react";
-import { Pressable, Text, StyleSheet } from "react-native";
+import { Pressable, Text, StyleSheet, Dimensions } from "react-native";
+import { FontSize, Spacing, ResponsiveDimensions } from "../utils/responsive";
 
 type Props = {
   title: string;
@@ -26,10 +27,12 @@ export default function PrimaryButton({ title, onPress, disabled }: Props) {
 const styles = StyleSheet.create({
   button: {
     backgroundColor: "#2563eb",
-    paddingVertical: 16,
+    paddingVertical: Spacing.md,
     borderRadius: 16,
     alignItems: "center",
-    marginTop: 12,
+    justifyContent: "center",
+    marginTop: Spacing.md,
+    minHeight: ResponsiveDimensions.buttonHeight,
   },
   pressed: {
     opacity: 0.8,
@@ -40,6 +43,6 @@ const styles = StyleSheet.create({
   text: {
     color: "#fff",
     fontWeight: "800",
-    fontSize: 16,
+    fontSize: FontSize.lg,
   },
 });

@@ -17,6 +17,7 @@ import { RootStackParamList } from "../types";
 import { todayDeliveries } from "../data/mockDeliveries";
 import { useAuth } from "../context/AuthContext";
 import { getCourierDeliveries, CourierDelivery } from "../api";
+import { FontSize, Spacing, ResponsiveDimensions } from "../utils/responsive";
 
 type NavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -62,7 +63,6 @@ export default function DeliveriesScreen() {
   const deliveryItems = backendDeliveries?.map((item) => ({
     id: item.id,
     orderId: item.trackingNo,
-    customerName: item.customerId ? `Customer ${item.customerId.slice(0, 6)}` : "Customer",
     recipient: item.customerId ? `Customer ${item.customerId.slice(0, 6)}` : "Customer",
     address: "Address unavailable",
     status: item.status,
@@ -83,9 +83,7 @@ export default function DeliveriesScreen() {
       filtered = filtered.filter(
         (item) =>
           item.orderId.toLowerCase().includes(search.toLowerCase()) ||
-          item.customerName
-            .toLowerCase()
-            .includes(search.toLowerCase())
+          (item.recipient || "").toLowerCase().includes(search.toLowerCase())
       );
     }
 
@@ -245,7 +243,7 @@ export default function DeliveriesScreen() {
                 <Text style={styles.orderId}>{item.orderId}</Text>
 
                 <Text style={styles.customerName}>
-                  {item.customerName}
+                  {item.recipient}
                 </Text>
 
                 <Text style={styles.address}>
@@ -288,15 +286,15 @@ const styles = StyleSheet.create({
   },
 
   content: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.lg,
   },
 
   /* HEADER */
 
   header: {
     height: 64,
-    paddingHorizontal: 16,
+    paddingHorizontal: Spacing.md,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -306,7 +304,7 @@ const styles = StyleSheet.create({
   },
 
   headerTitle: {
-    fontSize: 18,
+    fontSize: FontSize.xl,
     fontWeight: "700",
     color: "#0f172a",
   },
@@ -314,37 +312,37 @@ const styles = StyleSheet.create({
   /* SEARCH */
 
   searchContainer: {
-    marginTop: 16,
-    height: 46,
+    marginTop: Spacing.md,
+    height: ResponsiveDimensions.inputHeight,
     borderRadius: 12,
     backgroundColor: "#ffffff",
     borderWidth: 1,
     borderColor: "#e2e8f0",
-    paddingHorizontal: 14,
+    paddingHorizontal: Spacing.md,
     flexDirection: "row",
     alignItems: "center",
   },
 
   searchInput: {
     flex: 1,
-    marginLeft: 10,
+    marginLeft: Spacing.md,
     color: "#0f172a",
-    fontSize: 14,
+    fontSize: FontSize.base,
   },
 
   /* TABS */
 
   tabsContainer: {
-    paddingTop: 18,
-    paddingBottom: 14,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.md,
   },
 
   tabButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
     borderRadius: 10,
     backgroundColor: "#ffffff",
-    marginRight: 10,
+    marginRight: Spacing.md,
     borderWidth: 1,
     borderColor: "#e2e8f0",
   },
@@ -355,7 +353,7 @@ const styles = StyleSheet.create({
   },
 
   tabText: {
-    fontSize: 13,
+    fontSize: FontSize.sm,
     fontWeight: "600",
     color: "#64748b",
   },
@@ -369,8 +367,8 @@ const styles = StyleSheet.create({
   deliveryCard: {
     backgroundColor: "#ffffff",
     borderRadius: 16,
-    padding: 14,
-    marginBottom: 12,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
 
     flexDirection: "row",
     alignItems: "center",
@@ -388,7 +386,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#eff6ff",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
+    marginRight: Spacing.md,
   },
 
   deliveryInfo: {
@@ -396,21 +394,21 @@ const styles = StyleSheet.create({
   },
 
   orderId: {
-    fontSize: 15,
+    fontSize: FontSize.base,
     fontWeight: "700",
     color: "#0f172a",
   },
 
   customerName: {
-    marginTop: 2,
-    fontSize: 13,
+    marginTop: Spacing.xs,
+    fontSize: FontSize.sm,
     color: "#334155",
     fontWeight: "500",
   },
 
   address: {
-    marginTop: 2,
-    fontSize: 12,
+    marginTop: Spacing.xs,
+    fontSize: FontSize.xs,
     color: "#94a3b8",
   },
 
@@ -419,43 +417,43 @@ const styles = StyleSheet.create({
   },
 
   time: {
-    fontSize: 12,
+    fontSize: FontSize.xs,
     color: "#64748b",
-    marginBottom: 8,
+    marginBottom: Spacing.md,
   },
 
   statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
     borderRadius: 999,
   },
 
   statusText: {
-    fontSize: 11,
+    fontSize: FontSize.xs,
     fontWeight: "700",
   },
   errorBanner: {
     backgroundColor: "#fee2e2",
     borderRadius: 14,
-    padding: 12,
-    marginBottom: 16,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
   },
   errorText: {
     color: "#b91c1c",
-    fontSize: 14,
+    fontSize: FontSize.base,
   },
   loadingContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    padding: 14,
+    padding: Spacing.md,
     borderRadius: 14,
     backgroundColor: "#eff6ff",
-    marginBottom: 16,
+    marginBottom: Spacing.md,
   },
   loadingText: {
-    marginLeft: 10,
+    marginLeft: Spacing.md,
     color: "#1d4ed8",
-    fontSize: 14,
+    fontSize: FontSize.base,
   },
 });

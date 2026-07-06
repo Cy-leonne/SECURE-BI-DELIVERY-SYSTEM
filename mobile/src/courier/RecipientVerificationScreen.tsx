@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   SafeAreaView,
   View,
@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   Image,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 
 import {
@@ -17,8 +19,11 @@ import {
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 import { Ionicons } from "@expo/vector-icons";
+import * as LocalAuthentication from "expo-local-authentication";
 
 import { RootStackParamList } from "../types";
+import { useAuth } from "../context/AuthContext";
+import { getDeliveryByTracking, verifyRecipient, CourierDelivery } from "../api";
 
 type RouteProps = RouteProp<
   RootStackParamList,
@@ -32,14 +37,84 @@ type NavigationProp = NativeStackNavigationProp<
 
 export default function RecipientVerificationScreen() {
   const navigation = useNavigation<NavigationProp>();
-
+  const { user } = useAuth();
   const route = useRoute<RouteProps>();
-
   const { orderId } = route.params;
+
+  const [delivery, setDelivery] = useState<CourierDelivery | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user?.token) return;
+
+    let active = true;
+    const loadDelivery = async () => {
+      setLoading(true);
+      try {
+        const result = await getDeliveryByTracking(user.token, orderId);
+        if (active) {
+          setDelivery(result);
+          setError(null);
+        }
+      } catch (fetchError: any) {
+        if (active) {
+          setError(fetchError.message || "Unable to load delivery details.");
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    loadDelivery();
+    return () => {
+      active = false;
+    };
+  }, [orderId, user?.token]);
+
+  const handleVerifyRecipient = async () => {
+    if (!user?.token) {
+      return Alert.alert("Authentication required", "Please log in to verify the recipient.");
+    }
+
+    if (!delivery) {
+      return Alert.alert("Delivery unavailable", "Unable to verify recipient without delivery details.");
+    }
+
+    if (!delivery.customerId) {
+      return Alert.alert("Verification error", "Delivery customer information is missing.");
+    }
+
+    setLoading(true);
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        disableDeviceFallback: false,
+        fallbackLabel: "Use PIN",
+      });
+
+      if (!result.success) {
+        Alert.alert("Verification failed", "Biometric scan did not complete successfully.");
+        return;
+      }
+
+      const verifyResult = await verifyRecipient(user.token, delivery.id, delivery.customerId, true);
+      if (verifyResult?.proofRecorded) {
+        navigation.navigate("VerificationSuccess", { orderId });
+      } else {
+        Alert.alert("Verification failed", "Recipient verification was not recorded.");
+      }
+    } catch (apiError: any) {
+      Alert.alert("Verification error", apiError.message || "Unable to verify recipient.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deliveryCustomer = delivery?.recipientName || `Customer ${delivery?.customerId?.slice(0, 6) ?? ""}`;
+  const deliveryAddress = delivery?.deliveryAddress || "Address unavailable";
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons
@@ -57,49 +132,29 @@ export default function RecipientVerificationScreen() {
       </View>
 
       <View style={styles.content}>
-        {/* STEP INDICATOR */}
         <View style={styles.stepsRow}>
           <View style={styles.activeStep}>
-            <Text style={styles.activeStepText}>
-              1
-            </Text>
+            <Text style={styles.activeStepText}>1</Text>
           </View>
-
           <View style={styles.stepLine} />
-
           <View style={styles.inactiveStep}>
-            <Text style={styles.inactiveStepText}>
-              2
-            </Text>
+            <Text style={styles.inactiveStepText}>2</Text>
           </View>
-
           <View style={styles.stepLine} />
-
           <View style={styles.inactiveStep}>
-            <Text style={styles.inactiveStepText}>
-              3
-            </Text>
+            <Text style={styles.inactiveStepText}>3</Text>
           </View>
         </View>
 
-        {/* TITLE */}
-        <Text style={styles.title}>
-          Recipient Verification
-        </Text>
+        <Text style={styles.title}>Recipient Verification</Text>
+        <Text style={styles.subtitle}>Verify the recipient's identity</Text>
 
-        <Text style={styles.subtitle}>
-          Verify the recipient's identity
-        </Text>
-
-        {/* FACE SCAN AREA */}
         <View style={styles.scanWrapper}>
           <View style={styles.outerCircle}>
             <View style={styles.middleCircle}>
               <View style={styles.innerCircle}>
                 <Image
-                  source={{
-                    uri: "https://randomuser.me/api/portraits/men/32.jpg",
-                  }}
+                  source={{ uri: "https://randomuser.me/api/portraits/men/32.jpg" }}
                   style={styles.faceImage}
                 />
               </View>
@@ -107,30 +162,25 @@ export default function RecipientVerificationScreen() {
           </View>
         </View>
 
-        {/* ORDER INFO */}
-        <Text style={styles.orderText}>
-          Order {orderId}
-        </Text>
+        {loading ? (
+          <ActivityIndicator size="large" color="#2563eb" style={{ marginTop: 16 }} />
+        ) : null}
 
-        <Text style={styles.helperText}>
-          Position the face in the frame{"\n"}
-          for biometric verification
-        </Text>
+        {error ? (
+          <Text style={[styles.helperText, { color: "#dc2626" }]}>{error}</Text>
+        ) : null}
 
-        {/* BUTTON */}
+        <Text style={styles.orderText}>Order {orderId}</Text>
+        <Text style={styles.helperText}>{deliveryCustomer}</Text>
+        <Text style={styles.helperText}>{deliveryAddress}</Text>
+
         <TouchableOpacity
-          style={styles.button}
+          style={[styles.button, loading && { opacity: 0.7 }]}
           activeOpacity={0.8}
-          onPress={() =>
-            navigation.navigate(
-              "VerificationSuccess",
-              { orderId }
-            )
-          }
+          onPress={handleVerifyRecipient}
+          disabled={loading}
         >
-          <Text style={styles.buttonText}>
-            Verify Recipient
-          </Text>
+          <Text style={styles.buttonText}>Verify Recipient</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

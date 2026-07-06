@@ -6,31 +6,66 @@
   "main": "expo/AppEntry.js",
   "scripts": {
     "start": "npx expo start",
+    "start:dev-client": "npx expo start --dev-client",
     "android": "npx expo start --android",
     "ios": "npx expo start --ios",
     "web": "npx expo start --web",
+    "web:build": "npx expo build:web",
+    "desktop:dev": "npx concurrently \"npx expo start --web\" \"npx wait-on http://localhost:19006 && npx electron desktop/main.js\"",
+    "desktop": "npx electron desktop/main.js",
+    "desktop:build": "npm run web:build && npx electron-builder build --win",
+    "eas:install-dev-client": "npx expo install expo-dev-client",
+    "eas:build:android:dev": "npx eas build --platform android --profile development",
+    "eas:build:ios:dev": "npx eas build --platform ios --profile development",
     "test": "node --test"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@expo/vector-icons": "^15.0.2",
     "@react-native-community/cli-server-api": "^13.0.0",
-    "@react-native-community/datetimepicker": "^9.1.0",
+    "@react-native-community/datetimepicker": "~8.6.0",
+    "@react-native-masked-view/masked-view": "0.3.2",
     "@react-navigation/native": "^6.1.18",
     "@react-navigation/native-stack": "^6.11.0",
-    "expo": "^55.0.20",
-    "expo-dev-client": "~55.0.35",
-    "react": "19.2.0",
-    "react-dom": "19.2.0",
-    "react-native": "0.83.6",
-    "react-native-safe-area-context": "^4.14.1",
-    "react-native-screens": "^3.37.0",
-    "react-native-web": "^0.21.0"
+    "expo": "~54.0.0",
+    "expo-asset": "~12.0.13",
+    "expo-dev-client": "~6.0.21",
+    "expo-font": "~14.0.7",
+    "expo-local-authentication": "~14.0.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-native": "0.71.8",
+    "react-native-safe-area-context": "~4.4.1",
+    "react-native-screens": "~3.13.0",
+    "react-native-web": "0.18.10"
   },
   "devDependencies": {
     "@types/react": "~19.2.10",
-    "@types/react-native": "^0.72.8",
-    "typescript": "~5.9.2"
+    "concurrently": "^8.2.0",
+    "eas-cli": "^20.2.0",
+    "electron": "^26.2.0",
+    "electron-builder": "^24.6.0",
+    "typescript": "~5.9.2",
+    "wait-on": "^7.0.1"
+  },
+  "build": {
+    "appId": "com.securebi.delivery",
+    "productName": "Secure BI Delivery",
+    "directories": {
+      "buildResources": "desktop/build",
+      "output": "desktop/dist"
+    },
+    "files": [
+      "desktop/**/*",
+      "web-build/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    }
   }
 }

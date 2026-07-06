@@ -8,10 +8,12 @@ import {
   Dimensions,
   ScrollView,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import PrimaryButton from "../../components/PrimaryButton";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../types";
+import { DeviceSize, FontSize, Spacing, ResponsiveDimensions } from "../../utils/responsive";
 
 type RoleProps = NativeStackScreenProps<RootStackParamList, "Role">;
 
@@ -21,6 +23,7 @@ export default function RoleScreen({ navigation }: RoleProps) {
   const [role, setRole] = useState<"courier" | "customer" | "admin">(
     "courier"
   );
+  const insets = useSafeAreaInsets();
 
   const handleContinue = () => {
     if (role === "customer") {
@@ -193,51 +196,54 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#001F3D",
+    alignItems: "center",
   },
 
   scrollContent: {
     flexGrow: 1,
     justifyContent: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 40,
+    alignItems: "center",
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.xl,
   },
 
   headerContainer: {
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: Spacing.xl,
   },
 
   lockIconContainer: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: ResponsiveDimensions.largeIconSize,
+    height: ResponsiveDimensions.largeIconSize,
+    borderRadius: ResponsiveDimensions.largeIconSize / 2,
     backgroundColor: "rgba(255, 255, 255, 0.1)",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: Spacing.md,
   },
 
   appTitle: {
-    fontSize: 20,
+    fontSize: FontSize.lg,
     fontWeight: "700",
     color: "#ffffff",
     letterSpacing: 0.5,
   },
 
   appSubtitle: {
-    fontSize: 12,
+    fontSize: FontSize.sm,
     fontWeight: "600",
     color: "#BFD8EC",
     letterSpacing: 0.8,
-    marginTop: 4,
+    marginTop: Spacing.xs,
   },
 
   card: {
-    width: width > 500 ? 420 : "100%",
+    width: ResponsiveDimensions.cardWidth,
+    alignSelf: "center",
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
-    paddingHorizontal: 24,
-    paddingVertical: 28,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -246,21 +252,22 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 8,
+    maxHeight: "80%",
   },
 
   title: {
-    fontSize: 24,
+    fontSize: FontSize["2xl"],
     fontWeight: "700",
     color: "#0F172A",
     textAlign: "center",
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
 
   subtitle: {
-    fontSize: 14,
+    fontSize: FontSize.base,
     color: "#64748B",
     textAlign: "center",
-    marginBottom: 24,
+    marginBottom: Spacing.lg,
   },
 
   roleCard: {
@@ -269,9 +276,9 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: "#E5E7EB",
     borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    marginBottom: 12,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
     backgroundColor: "#FFFFFF",
   },
 
@@ -287,7 +294,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(37, 99, 235, 0.1)",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 16,
+    marginRight: Spacing.md,
   },
 
   textContainer: {
@@ -295,14 +302,14 @@ const styles = StyleSheet.create({
   },
 
   roleTitle: {
-    fontSize: 16,
+    fontSize: FontSize.lg,
     fontWeight: "700",
     color: "#111827",
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
 
   roleDescription: {
-    fontSize: 13,
+    fontSize: FontSize.sm,
     color: "#6B7280",
   },
 
@@ -315,20 +322,20 @@ const styles = StyleSheet.create({
   },
 
   buttonContainer: {
-    marginTop: 16,
-    marginBottom: 12,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.md,
   },
 
   footer: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 20,
+    marginTop: Spacing.lg,
   },
 
   footerText: {
-    marginLeft: 6,
-    fontSize: 12,
+    marginLeft: Spacing.xs,
+    fontSize: FontSize.sm,
     color: "#6B7280",
   },
 });

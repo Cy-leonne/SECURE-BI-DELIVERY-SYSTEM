@@ -3,11 +3,14 @@
     "name": "Secure BI Delivery",
     "slug": "secure-bi-delivery",
     "version": "1.0.0",
-    "sdkVersion": "55.0.0",
+    "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "assetBundlePatterns": [
       "**/*"
+    ],
+    "plugins": [
+      "expo-dev-client"
     ],
     "ios": {
       "supportsTablet": true
@@ -30,8 +33,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "a8b1b798-51d6-4d2d-8acb-e84c9386d060"
+        "projectId": "4057d9be-4147-4772-bb28-f021bf82639e"
       }
-    }
+    },
+    "owner": "wekesaleone"
   }
 }

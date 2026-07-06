@@ -5,20 +5,23 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../types";
+import { useAuth } from "../context/AuthContext";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "Profile">;
 
 export default function ProfileScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { user, logout } = useAuth();
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>John Courier</Text>
+        <Text style={styles.title}>{user?.name ?? "Courier"}</Text>
         <Text style={styles.subtitle}>Courier Profile</Text>
       </View>
 
@@ -26,15 +29,15 @@ export default function ProfileScreen() {
         <View style={styles.avatar} />
         <View style={styles.infoRow}>
           <Text style={styles.label}>Email</Text>
-          <Text style={styles.value}>johncourier@example.com</Text>
+          <Text style={styles.value}>{user?.email ?? "Not set"}</Text>
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.label}>Phone</Text>
-          <Text style={styles.value}>+254 722 345 678</Text>
+          <Text style={styles.value}>{user?.phone ?? "Not set"}</Text>
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.label}>Status</Text>
-          <Text style={styles.value}>Active</Text>
+          <Text style={styles.value}>{user ? (user?.token ? "Active" : "Signed out") : "Unknown"}</Text>
         </View>
       </View>
 
@@ -42,7 +45,12 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>Quick Actions</Text>
         <TouchableOpacity
           style={styles.actionItem}
-          onPress={() => navigation.navigate("Deliveries")}
+          onPress={() => {
+            if (!user?.token || user?.role !== "courier") {
+              return Alert.alert("Access denied", "You must be signed in as a courier to view deliveries.");
+            }
+            navigation.navigate("Deliveries");
+          }}
         >
           <Text style={styles.actionText}>Deliveries</Text>
           <Text style={styles.actionNote}>View delivery details, start verification flow.</Text>
@@ -51,7 +59,12 @@ export default function ProfileScreen() {
 
       <TouchableOpacity
         style={styles.logoutButton}
-        onPress={() => navigation.reset({ index: 0, routes: [{ name: "Role" }] })}
+        onPress={() => {
+          logout();
+          setTimeout(() => {
+            navigation.reset({ index: 0, routes: [{ name: "Role" }] });
+          }, 50);
+        }}
       >
         <Text style={styles.logoutText}>Logout Courier</Text>
       </TouchableOpacity>

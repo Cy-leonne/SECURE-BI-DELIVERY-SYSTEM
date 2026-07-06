@@ -12,6 +12,7 @@ import {
 } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../types";
+import { useAuth } from "../../context/AuthContext";
 
 type SidebarRoute =
   | "AdminDashboard"
@@ -35,14 +36,22 @@ const sidebarItems: {
   { label: "Settings" },
 ];
 
-export default function AdminSidebar() {
+export default function AdminSidebar({ onItemPress }: { onItemPress?: () => void }) {
   const navigation = useNavigation<
     NativeStackNavigationProp<RootStackParamList>
   >();
   const route = useRoute<
     RouteProp<RootStackParamList, SidebarRoute>
   >();
+  const { logout } = useAuth();
   const activeRoute = route.name as SidebarRoute;
+
+  const handlePress = (route?: SidebarRoute) => {
+    if (route) {
+      navigation.navigate(route);
+      onItemPress?.();
+    }
+  };
 
   return (
     <View style={styles.sidebar}>
@@ -60,7 +69,7 @@ export default function AdminSidebar() {
                 active && styles.activeMenuItem,
                 !item.route && styles.disabledMenuItem,
               ]}
-              onPress={() => item.route && navigation.navigate(item.route)}
+              onPress={() => handlePress(item.route)}
               disabled={!item.route}
             >
               <Text
@@ -79,7 +88,11 @@ export default function AdminSidebar() {
 
       <TouchableOpacity
         style={styles.logoutButton}
-        onPress={() => navigation.navigate("Role")}
+        onPress={() => {
+          logout();
+          onItemPress?.();
+          // AppNavigator automatically switches to unauthenticated stack
+        }}
       >
         <Text style={styles.logoutText}>Logout</Text>
       </TouchableOpacity>

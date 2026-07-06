@@ -4,6 +4,7 @@ export type Screen =
   | "Register"
   | "Biometric"
   | "Login"
+  | "ResetPassword"
   | "Dashboard"
   | "CustomerDashboard"
   | "AdminDashboard"
@@ -25,7 +26,8 @@ export type RootStackParamList = {
   Role: undefined;
   Register: { role?: "customer" | "courier" | "admin" };
   Login: { role?: "customer" | "courier" | "admin" };
-  Biometric: undefined;
+  ResetPassword: undefined;
+  Biometric: { userId: string; role: UserRole };
   Dashboard: undefined;
   CustomerDashboard: { orderPlaced?: true; orderId?: string } | undefined;
   AdminDashboard: undefined;
@@ -50,6 +52,8 @@ export type UserRole = "courier" | "customer" | "admin";
 export type AuthUser = {
   id: string;
   role: UserRole;
+  name?: string;
+  email?: string;
   token: string;
 };
 

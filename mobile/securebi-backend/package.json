@@ -4,7 +4,9 @@
   "description": "SecureBi backend API for the mobile app",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "migrate": "node migrate-schema.js",
+    "test-db": "node test-db.js"
   },
   "keywords": [],
   "author": "",

@@ -78,9 +78,29 @@ export default function DeliveryDetailsScreen() {
     todayDeliveries.find((item) => item.orderId === orderId) ??
     todayDeliveries[0];
 
+  const isCourierDelivery = (d: CourierDelivery | import("../types").DeliveryRecord): d is CourierDelivery => {
+    return (d as CourierDelivery).trackingNo !== undefined;
+  };
+
+  const displayOrderId = isCourierDelivery(selectedDelivery)
+    ? selectedDelivery.trackingNo
+    : (selectedDelivery as import("../types").DeliveryRecord).orderId;
+
+  const displayRecipient = isCourierDelivery(selectedDelivery)
+    ? selectedDelivery.recipientName || `Customer ${selectedDelivery.customerId?.slice(0, 6) ?? ""}`
+    : (selectedDelivery as import("../types").DeliveryRecord).recipient;
+
+  const displayAddress = isCourierDelivery(selectedDelivery)
+    ? selectedDelivery.deliveryAddress || "Address unavailable"
+    : (selectedDelivery as import("../types").DeliveryRecord).address;
+
   const handleStart = async () => {
     if (!delivery || !user?.token) {
       return navigation.navigate("RecipientVerification", { orderId });
+    }
+
+    if (delivery.status === "Delivered") {
+      return Alert.alert("Delivery already completed", "This delivery has already been recorded as delivered.");
     }
 
     try {
@@ -134,7 +154,7 @@ export default function DeliveryDetailsScreen() {
             </Text>
 
             <Text style={styles.value}>
-              {selectedDelivery.orderId}
+              {displayOrderId}
             </Text>
           </View>
 
@@ -145,7 +165,7 @@ export default function DeliveryDetailsScreen() {
             </Text>
 
             <Text style={styles.value}>
-              {selectedDelivery.recipient}
+              {displayRecipient}
             </Text>
           </View>
 
@@ -156,7 +176,9 @@ export default function DeliveryDetailsScreen() {
             </Text>
 
             <Text style={styles.value}>
-              +254 700 123 456
+              {isCourierDelivery(selectedDelivery)
+                ? selectedDelivery.recipientPhone || "+254 700 123 456"
+                : "+254 700 123 456"}
             </Text>
           </View>
 
@@ -167,7 +189,7 @@ export default function DeliveryDetailsScreen() {
             </Text>
 
             <Text style={styles.value}>
-              {selectedDelivery.address}
+              {displayAddress}
             </Text>
           </View>
 
@@ -178,7 +200,9 @@ export default function DeliveryDetailsScreen() {
             </Text>
 
             <Text style={styles.value}>
-              Electronics
+              {isCourierDelivery(selectedDelivery)
+                ? selectedDelivery.item || selectedDelivery.description || "Unknown"
+                : "Electronics"}
             </Text>
           </View>
 
@@ -189,7 +213,9 @@ export default function DeliveryDetailsScreen() {
             </Text>
 
             <Text style={styles.value}>
-              Handle with care
+              {isCourierDelivery(selectedDelivery)
+                ? selectedDelivery.specialInstructions || "No special instructions"
+                : "Handle with care"}
             </Text>
           </View>
 
@@ -197,7 +223,7 @@ export default function DeliveryDetailsScreen() {
           <View style={styles.mapContainer}>
             <View style={styles.mapPlaceholder}>
               <Text style={styles.mapPlaceholderText}>Map view unavailable</Text>
-              <Text style={styles.mapPlaceholderSub}>{selectedDelivery.address}</Text>
+              <Text style={styles.mapPlaceholderSub}>{displayAddress}</Text>
             </View>
           </View>
         </View>

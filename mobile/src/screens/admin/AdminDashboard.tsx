@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
+  Modal,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../types";
@@ -19,6 +21,8 @@ type NavigationProp = NativeStackNavigationProp<
 >;
 
 const { width } = Dimensions.get("window");
+const isMobile = width < 768;
+const isTablet = width >= 768 && width < 1024;
 
 const metrics = [
   { label: "Users", value: "512", delta: "+12%" },
@@ -85,11 +89,42 @@ const getStatusStyle = (status: string) => {
 
 export default function AdminDashboard() {
   const navigation = useNavigation<NavigationProp>();
+  const [sidebarVisible, setSidebarVisible] = useState(false);
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.layout}>
-        <AdminSidebar />
+      {/* MOBILE HEADER */}
+      {isMobile && (
+        <View style={styles.mobileHeader}>
+          <TouchableOpacity onPress={() => setSidebarVisible(true)}>
+            <Ionicons name="menu" size={28} color="#0f172a" />
+          </TouchableOpacity>
+          <Text style={styles.mobileHeaderTitle}>Admin Dashboard</Text>
+          <View style={{ width: 28 }} />
+        </View>
+      )}
+
+      <View style={[styles.layout, isMobile && { flexDirection: "column" }]}>
+        {/* SIDEBAR - Hidden on mobile, shown in modal */}
+        {!isMobile && <AdminSidebar />}
+
+        {isMobile && (
+          <Modal
+            visible={sidebarVisible}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setSidebarVisible(false)}
+          >
+            <SafeAreaView style={styles.mobileModalContainer}>
+              <View style={styles.mobileModalHeader}>
+                <TouchableOpacity onPress={() => setSidebarVisible(false)}>
+                  <Ionicons name="close" size={28} color="#0f172a" />
+                </TouchableOpacity>
+              </View>
+              <AdminSidebar onItemPress={() => setSidebarVisible(false)} />
+            </SafeAreaView>
+          </Modal>
+        )}
 
         {/* MAIN CONTENT */}
         <ScrollView
@@ -98,20 +133,29 @@ export default function AdminDashboard() {
           showsVerticalScrollIndicator={false}
         >
           {/* HEADER */}
-          <View style={styles.header}>
-            <View>
-              <Text style={styles.dashboardTitle}>Dashboard</Text>
-            </View>
+          {!isMobile && (
+            <View style={styles.header}>
+              <View>
+                <Text style={styles.dashboardTitle}>Dashboard</Text>
+              </View>
 
-            <View style={styles.adminBadge}>
-              <Text style={styles.adminText}>Admin</Text>
+              <View style={styles.adminBadge}>
+                <Text style={styles.adminText}>Admin</Text>
+              </View>
             </View>
-          </View>
+          )}
 
           {/* METRIC CARDS */}
           <View style={styles.metricsContainer}>
             {metrics.map((metric) => (
-              <View key={metric.label} style={styles.metricCard}>
+              <View
+                key={metric.label}
+                style={[
+                  styles.metricCard,
+                  isMobile && styles.metricCardMobile,
+                  isTablet && styles.metricCardTablet,
+                ]}
+              >
                 <Text style={styles.metricLabel}>{metric.label}</Text>
 
                 <Text style={styles.metricValue}>
@@ -126,14 +170,30 @@ export default function AdminDashboard() {
           </View>
 
           {/* CONTENT GRID */}
-          <View style={styles.grid}>
+          <View
+            style={[
+              styles.grid,
+              isMobile && { flexDirection: "column" },
+              isTablet && { flexDirection: "column" },
+            ]}
+          >
             {/* CHART CARD */}
-            <View style={styles.chartCard}>
+            <View
+              style={[
+                styles.chartCard,
+                isMobile && styles.chartCardMobile,
+              ]}
+            >
               <Text style={styles.cardTitle}>
                 Delivery Overview
               </Text>
 
-              <View style={styles.chartBox}>
+              <View
+                style={[
+                  styles.chartBox,
+                  isMobile && styles.chartBoxMobile,
+                ]}
+              >
                 {/* Green bars */}
                 <View style={styles.chartColumn}>
                   <View style={[styles.greenBar, { height: 90 }]} />
@@ -167,10 +227,21 @@ export default function AdminDashboard() {
               </View>
 
               {/* MONTHS */}
-              <View style={styles.monthRow}>
+              <View
+                style={[
+                  styles.monthRow,
+                  isMobile && styles.monthRowMobile,
+                ]}
+              >
                 {["14 May", "15 May", "16 May", "17 May", "18 May", "19 May"].map(
                   (month) => (
-                    <Text key={month} style={styles.monthText}>
+                    <Text
+                      key={month}
+                      style={[
+                        styles.monthText,
+                        isMobile && styles.monthTextMobile,
+                      ]}
+                    >
                       {month}
                     </Text>
                   )
@@ -178,7 +249,12 @@ export default function AdminDashboard() {
               </View>
 
               {/* LEGEND */}
-              <View style={styles.legendRow}>
+              <View
+                style={[
+                  styles.legendRow,
+                  isMobile && styles.legendRowMobile,
+                ]}
+              >
                 <View style={styles.legendItem}>
                   <View
                     style={[
@@ -202,7 +278,12 @@ export default function AdminDashboard() {
             </View>
 
             {/* RECENT DELIVERIES */}
-            <View style={styles.recentCard}>
+            <View
+              style={[
+                styles.recentCard,
+                isMobile && styles.recentCardMobile,
+              ]}
+            >
               <View style={styles.recentHeader}>
                 <Text style={styles.cardTitle}>
                   Recent Deliveries
@@ -214,7 +295,7 @@ export default function AdminDashboard() {
                   }
                 >
                   <Text style={styles.viewAll}>
-                    View All Deliveries
+                    View All
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -223,8 +304,14 @@ export default function AdminDashboard() {
                 const status = getStatusStyle(item.status);
 
                 return (
-                  <View key={item.id} style={styles.deliveryRow}>
-                    <View>
+                  <View
+                    key={item.id}
+                    style={[
+                      styles.deliveryRow,
+                      isMobile && styles.deliveryRowMobile,
+                    ]}
+                  >
+                    <View style={isMobile && { flex: 1 }}>
                       <Text style={styles.orderId}>
                         {item.orderId}
                       </Text>
@@ -234,7 +321,12 @@ export default function AdminDashboard() {
                       </Text>
                     </View>
 
-                    <View style={styles.deliveryRight}>
+                    <View
+                      style={[
+                        styles.deliveryRight,
+                        isMobile && styles.deliveryRightMobile,
+                      ]}
+                    >
                       <View
                         style={[
                           styles.statusBadge,
@@ -270,6 +362,39 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f8fafc",
+  },
+
+  /* MOBILE HEADER */
+  mobileHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e2e8f0",
+  },
+
+  mobileHeaderTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#0f172a",
+    flex: 1,
+    textAlign: "center",
+  },
+
+  mobileModalContainer: {
+    flex: 1,
+    backgroundColor: "#062766",
+  },
+
+  mobileModalHeader: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#1e3a5f",
+    alignItems: "flex-end",
   },
 
   layout: {
@@ -372,16 +497,26 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     justifyContent: "space-between",
     marginBottom: 24,
+    gap: 16,
   },
 
   metricCard: {
-    width: width > 1000 ? "23%" : "48%",
+    width: "23%",
     backgroundColor: "#fff",
     borderRadius: 18,
     padding: 22,
-    marginBottom: 16,
     borderWidth: 1,
     borderColor: "#edf2f7",
+  },
+
+  metricCardMobile: {
+    width: "100%",
+    padding: 16,
+  },
+
+  metricCardTablet: {
+    width: "48%",
+    padding: 16,
   },
 
   metricLabel: {
@@ -406,7 +541,7 @@ const styles = StyleSheet.create({
   /* GRID */
 
   grid: {
-    flexDirection: width > 1000 ? "row" : "column",
+    flexDirection: "row",
     justifyContent: "space-between",
     gap: 20,
   },
@@ -420,6 +555,12 @@ const styles = StyleSheet.create({
     borderColor: "#edf2f7",
   },
 
+  chartCardMobile: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 16,
+  },
+
   recentCard: {
     flex: 1,
     backgroundColor: "#fff",
@@ -427,6 +568,12 @@ const styles = StyleSheet.create({
     padding: 22,
     borderWidth: 1,
     borderColor: "#edf2f7",
+  },
+
+  recentCardMobile: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 16,
   },
 
   cardTitle: {
@@ -444,6 +591,10 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     justifyContent: "space-between",
     marginBottom: 16,
+  },
+
+  chartBoxMobile: {
+    height: 150,
   },
 
   chartColumn: {
@@ -472,15 +623,27 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
 
+  monthRowMobile: {
+    marginBottom: 12,
+  },
+
   monthText: {
     fontSize: 12,
     color: "#64748b",
     fontWeight: "700",
   },
 
+  monthTextMobile: {
+    fontSize: 10,
+  },
+
   legendRow: {
     flexDirection: "row",
     gap: 20,
+  },
+
+  legendRowMobile: {
+    gap: 12,
   },
 
   legendItem: {
@@ -524,6 +687,10 @@ const styles = StyleSheet.create({
     borderBottomColor: "#f1f5f9",
   },
 
+  deliveryRowMobile: {
+    paddingVertical: 12,
+  },
+
   orderId: {
     fontSize: 15,
     fontWeight: "800",
@@ -538,6 +705,11 @@ const styles = StyleSheet.create({
 
   deliveryRight: {
     alignItems: "flex-end",
+  },
+
+  deliveryRightMobile: {
+    alignItems: "flex-end",
+    marginLeft: 8,
   },
 
   statusBadge: {

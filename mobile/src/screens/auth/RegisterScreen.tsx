@@ -6,12 +6,15 @@ import {
   SafeAreaView,
   Dimensions,
   TouchableOpacity,
+  ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import InputField from "../../components/InputField";
 import PrimaryButton from "../../components/PrimaryButton";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../../types";
+import { registerUser } from "../../api";
+import { RootStackParamList, UserRole } from "../../types";
+import { DeviceSize, FontSize, Spacing, ResponsiveDimensions } from "../../utils/responsive";
 
 type RegisterProps = NativeStackScreenProps<
   RootStackParamList,
@@ -32,23 +35,54 @@ export default function RegisterScreen({
     password: "",
     confirmPassword: "",
   });
+  const [message, setMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     if (
       !data.name ||
       !data.email ||
-      !data.phone ||
       !data.password ||
       !data.confirmPassword
     ) {
+      setMessage("Please fill in all required fields.");
       return;
     }
 
-    navigation.navigate("Biometric");
+    if (data.password !== data.confirmPassword) {
+      setMessage("Passwords do not match.");
+      return;
+    }
+
+    setMessage("");
+    setIsSubmitting(true);
+
+    try {
+      const response = await registerUser(
+        data.name,
+        data.email,
+        data.phone,
+        data.password,
+        role
+      );
+
+      navigation.navigate("Biometric", {
+        userId: response.user.id,
+        role: role as UserRole,
+      });
+    } catch (error: any) {
+      setMessage(error?.message || "Registration failed. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
       <View style={styles.card}>
         {/* Header */}
         <Text style={styles.title}>Create Your Account</Text>
@@ -125,8 +159,9 @@ export default function RegisterScreen({
         {/* Register Button */}
         <View style={styles.buttonContainer}>
           <PrimaryButton
-            title="Register"
+            title={isSubmitting ? "Registering..." : "Register"}
             onPress={handleRegister}
+            disabled={isSubmitting}
           />
         </View>
 
@@ -143,6 +178,10 @@ export default function RegisterScreen({
           </TouchableOpacity>
         </View>
 
+        {message ? (
+          <Text style={styles.errorText}>{message}</Text>
+        ) : null}
+
         {/* Bottom Branding */}
         <View style={styles.bottomBrand}>
           <Ionicons
@@ -155,6 +194,7 @@ export default function RegisterScreen({
           </Text>
         </View>
       </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -163,17 +203,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F3F4F6",
+  },
+
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 20,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
   },
 
   card: {
-    width: width > 500 ? 430 : "100%",
+    width: ResponsiveDimensions.cardWidth,
     backgroundColor: "#FFFFFF",
     borderRadius: 20,
-    paddingHorizontal: 24,
-    paddingVertical: 30,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.xl,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -185,56 +230,63 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    fontSize: 24,
+    fontSize: FontSize["2xl"],
     fontWeight: "700",
     color: "#0F172A",
     textAlign: "center",
-    marginBottom: 6,
+    marginBottom: Spacing.sm,
   },
 
   subtitle: {
-    fontSize: 14,
+    fontSize: FontSize.base,
     color: "#64748B",
     textAlign: "center",
-    marginBottom: 24,
+    marginBottom: Spacing.lg,
   },
 
   inputWrapper: {
-    marginBottom: 14,
+    marginBottom: Spacing.md,
   },
 
   buttonContainer: {
-    marginTop: 8,
+    marginTop: Spacing.md,
   },
 
   footer: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 22,
+    marginTop: Spacing.lg,
   },
 
   footerText: {
-    fontSize: 13,
+    fontSize: FontSize.sm,
     color: "#6B7280",
   },
 
   loginText: {
-    fontSize: 13,
+    fontSize: FontSize.sm,
     fontWeight: "600",
     color: "#2563EB",
+  },
+
+  errorText: {
+    color: "#b91c1c",
+    textAlign: "center",
+    marginTop: Spacing.lg,
+    fontSize: FontSize.sm,
   },
 
   bottomBrand: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 28,
+    marginTop: Spacing.xl,
   },
 
   brandText: {
-    marginLeft: 6,
-    fontSize: 12,
+    marginLeft: Spacing.xs,
+    fontSize: FontSize.sm,
     color: "#6B7280",
   },
 });

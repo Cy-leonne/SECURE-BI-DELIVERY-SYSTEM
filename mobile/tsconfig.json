@@ -6,8 +6,11 @@
     "strict": true,
     "moduleResolution": "Bundler",
     "skipLibCheck": true,
+    "noImplicitThis": false,
     "types": [
-      "react"
+      "react",
+      "react-native",
+      "node"
     ]
   },
   "include": [

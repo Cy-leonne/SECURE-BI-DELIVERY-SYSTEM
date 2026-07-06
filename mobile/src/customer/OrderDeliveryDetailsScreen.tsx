@@ -300,6 +300,13 @@ export default function OrderDeliveryDetailsScreen() {
         >
           <Text style={styles.cancelButtonText}>Cancel</Text>
         </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.navigate("PlaceOrder")}
+          >
+            <Ionicons name="arrow-back" size={20} color="#2563EB" />
+            <Text style={styles.backButtonText}>Back to Order Details</Text>
+          </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -450,6 +457,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+   backButton: {
+     marginTop: 12,
+     flexDirection: "row",
+     alignItems: "center",
+     justifyContent: "center",
+   },
+   backButtonText: {
+     color: "#2563EB",
+     fontWeight: "700",
+     marginLeft: 8,
+     fontSize: 14,
+   },
   cancelButtonText: {
     color: "#64748b",
     fontSize: 16,

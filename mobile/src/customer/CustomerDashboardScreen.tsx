@@ -43,24 +43,28 @@ export default function CustomerDashboardScreen() {
     try {
       const response = await getCustomerDeliveries(user.token, user.id);
       if (active) {
-        const customerOrders = response.deliveries.map((delivery) => ({
-          id: delivery.id,
-          orderId: delivery.trackingNo,
-          tracking: delivery.trackingNo,
-          status:
-            delivery.status === "Pending"
-              ? "Pending"
-              : delivery.status === "Delivered"
+        const customerOrders = response.deliveries.map((delivery) => {
+          const status: CustomerOrder["status"] =
+            delivery.status === "Delivered"
               ? "Delivered"
-              : "Pending",
-          date: new Date(delivery.createdAt).toLocaleDateString(undefined, {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          }),
-          address: "Delivery address pending",
-          item: "Shipment",
-        }));
+              : delivery.status === "Cancelled"
+              ? "Cancelled"
+              : "Pending";
+
+          return {
+            id: delivery.id,
+            orderId: delivery.trackingNo,
+            tracking: delivery.trackingNo,
+            status,
+            date: new Date(delivery.createdAt).toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            }),
+            address: "Delivery address pending",
+            item: "Shipment",
+          };
+        });
         setOrders(customerOrders);
         setError(null);
       }
@@ -129,24 +133,25 @@ export default function CustomerDashboardScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <View style={styles.titleRow}>
-            <View>
+            <View style={styles.titleBlock}>
               <Text style={styles.title}>Customer Dashboard</Text>
               <Text style={styles.subtitle}>
-                Track your current orders and review order status.
+                Track your current orders and place a new delivery.
               </Text>
             </View>
             <View style={styles.headerButtons}>
               <TouchableOpacity
-                style={styles.placeOrderButton}
+                style={[styles.headerAction, styles.primaryAction]}
                 onPress={() => navigation.navigate("PlaceOrder")}
               >
-                <Ionicons name="add-circle" size={32} color="#2563EB" />
+                <Text style={[styles.headerActionLabel, styles.newOrderText]}>New Order</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.profileButton}
+                style={styles.headerAction}
                 onPress={() => navigation.navigate("CustomerProfile")}
               >
-                <Ionicons name="person-circle" size={32} color="#64748b" />
+                <Ionicons name="person-circle" size={28} color="#64748b" />
+                <Text style={styles.headerActionLabel}>Profile</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -159,6 +164,7 @@ export default function CustomerDashboardScreen() {
             placeholder="Track order or search address"
             value={search}
             onChangeText={setSearch}
+            placeholderTextColor="#9CA3AF"
           />
         </View>
 
@@ -203,12 +209,22 @@ export default function CustomerDashboardScreen() {
         <View style={styles.ordersHeader}>
           <Text style={styles.sectionTitle}>Order History</Text>
           <Text style={styles.sectionSubtitle}>
-            {filteredOrders.length} results
+            {filteredOrders.length} result{filteredOrders.length === 1 ? "" : "s"}
           </Text>
         </View>
 
         {filteredOrders.map((order) => (
-          <TouchableOpacity key={order.id} style={styles.orderCard}>
+          <TouchableOpacity
+            key={order.id}
+            style={styles.orderCard}
+            onPress={() => navigation.navigate("OrderDeliveryDetails", {
+              orderId: order.orderId,
+              item: order.item,
+              description: "",
+              category: "",
+              estimatedWeight: "",
+            })}
+          >
             <View style={styles.orderTop}>
               <View>
                 <Text style={styles.orderId}>{order.orderId}</Text>
@@ -226,9 +242,16 @@ export default function CustomerDashboardScreen() {
             </View>
           </TouchableOpacity>
         ))}
+
         {!loading && filteredOrders.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateText}>No customer orders found.</Text>
+            <TouchableOpacity
+              style={styles.emptyAction}
+              onPress={() => navigation.navigate("PlaceOrder")}
+            >
+              <Text style={styles.emptyActionText}>Create your first order</Text>
+            </TouchableOpacity>
           </View>
         ) : null}
       </ScrollView>
@@ -253,6 +276,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
   },
+  titleBlock: {
+    flex: 1,
+    paddingRight: 12,
+  },
   title: {
     fontSize: 28,
     fontWeight: "800",
@@ -266,32 +293,26 @@ const styles = StyleSheet.create({
   },
   headerButtons: {
     flexDirection: "row",
-    gap: 10,
     alignItems: "center",
   },
-  placeOrderButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#dbeafe",
+  headerAction: {
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    marginLeft: 10,
   },
-  profileButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#f1f5f9",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+  primaryAction: {
+    marginLeft: 0,
+  },
+  headerActionLabel: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#334155",
+  },
+  newOrderText: {
+    color: "#2563EB",
+    fontSize: 14,
+    fontWeight: "800",
   },
   searchBox: {
     flexDirection: "row",
@@ -371,40 +392,6 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 2,
   },
-  errorBanner: {
-    backgroundColor: "#fee2e2",
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 16,
-  },
-  errorText: {
-    color: "#b91c1c",
-    fontSize: 14,
-  },
-  successBanner: {
-    backgroundColor: "#d1fae5",
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 16,
-  },
-  successText: {
-    color: "#065f46",
-    fontSize: 14,
-  },
-  loadingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 14,
-    borderRadius: 14,
-    backgroundColor: "#eff6ff",
-    marginBottom: 16,
-  },
-  loadingText: {
-    marginLeft: 10,
-    color: "#1d4ed8",
-    fontSize: 14,
-  },
   orderTop: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -459,6 +446,65 @@ const styles = StyleSheet.create({
   trackingText: {
     fontSize: 13,
     color: "#2563eb",
+    fontWeight: "700",
+  },
+  errorBanner: {
+    backgroundColor: "#fee2e2",
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 16,
+  },
+  errorText: {
+    color: "#b91c1c",
+    fontSize: 14,
+  },
+  successBanner: {
+    backgroundColor: "#d1fae5",
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 16,
+  },
+  successText: {
+    color: "#065f46",
+    fontSize: 14,
+  },
+  loadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: "#eff6ff",
+    marginBottom: 16,
+  },
+  loadingText: {
+    marginLeft: 10,
+    color: "#1d4ed8",
+    fontSize: 14,
+  },
+  emptyState: {
+    alignItems: "center",
+    marginTop: 20,
+    padding: 20,
+    backgroundColor: "#ffffff",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  emptyStateText: {
+    color: "#475569",
+    fontSize: 15,
+    marginBottom: 12,
+  },
+  emptyAction: {
+    backgroundColor: "#2563EB",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+  },
+  emptyActionText: {
+    color: "#ffffff",
+    fontSize: 14,
     fontWeight: "700",
   },
 });

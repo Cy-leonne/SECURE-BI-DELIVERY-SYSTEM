@@ -1,5 +1,6 @@
 import React from "react";
 import { TextInput, StyleSheet, TextInputProps, View, Text } from "react-native";
+import { FontSize, Spacing } from "../utils/responsive";
 
 type Props = TextInputProps & {
   label?: string;
@@ -16,19 +17,22 @@ export default function InputField({ label, ...props }: Props) {
 
 const styles = StyleSheet.create({
   wrapper: {
-    marginBottom: 14,
+    marginBottom: Spacing.md,
   },
   label: {
-    marginBottom: 6,
+    marginBottom: Spacing.sm,
     color: "#0f172a",
     fontWeight: "600",
+    fontSize: FontSize.base,
   },
   input: {
     backgroundColor: "#f8fafc",
     borderRadius: 14,
     borderWidth: 1,
     borderColor: "#e2e8f0",
-    padding: 14,
+    padding: Spacing.md,
     color: "#0f172a",
+    fontSize: FontSize.base,
+    minHeight: 44,
   },
 });

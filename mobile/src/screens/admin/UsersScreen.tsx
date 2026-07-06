@@ -1,17 +1,20 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   SafeAreaView,
   ScrollView,
   View,
- Text,
+  Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useAuth } from "../../context/AuthContext";
+import { getUsers, toggleUserActive } from "../../api";
 import { RootStackParamList } from "../../types";
 import AdminSidebar from "./AdminSidebar";
 
@@ -22,50 +25,66 @@ type NavigationProp = NativeStackNavigationProp<
 
 const { width } = Dimensions.get("window");
 
-const users = [
-  {
-    id: "u1",
-    name: "John Doe",
-    role: "Customer",
-    phone: "+254 700 123 456",
-    status: "Active",
-  },
-  {
-    id: "u2",
-    name: "Mary Smith",
-    role: "Customer",
-    phone: "+254 711 234 567",
-    status: "Active",
-  },
-  {
-    id: "u3",
-    name: "John Courier",
-    role: "Courier",
-    phone: "+254 722 345 678",
-    status: "Active",
-  },
-  {
-    id: "u4",
-    name: "Jane Courier",
-    role: "Courier",
-    phone: "+254 733 456 789",
-    status: "Inactive",
-  },
-];
-
 export default function UsersScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { user } = useAuth();
 
   const [search, setSearch] = useState("");
+  const [users, setUsers] = useState<Array<{
+    id: string;
+    name: string;
+    role: string;
+    phone?: string;
+    is_active: boolean;
+  }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadUsers = useCallback(async () => {
+    if (!user?.token) return;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await getUsers(user.token);
+      setUsers(response.users);
+    } catch (fetchError: any) {
+      setError(fetchError?.message || 'Unable to fetch users.');
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.token]);
+
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
+
+  const handleToggleStatus = async (userId: string, isActive: boolean) => {
+    if (!user?.token) return;
+    try {
+      const response = await toggleUserActive(user.token, userId, !isActive);
+      setUsers((prev) =>
+        prev.map((current) =>
+          current.id === userId
+            ? { ...current, is_active: response.user.is_active }
+            : current
+        )
+      );
+    } catch (toggleError: any) {
+      setError(toggleError?.message || 'Unable to update user status.');
+    }
+  };
 
   const filteredUsers = useMemo(() => {
-    return users.filter(
-      (user) =>
-        user.name.toLowerCase().includes(search.toLowerCase()) ||
-        user.role.toLowerCase().includes(search.toLowerCase()) ||
-        user.phone.includes(search)
-    );
-  }, [search]);
+    return users.filter((userItem) => {
+      const normalizedSearch = search.toLowerCase();
+      return (
+        userItem.name.toLowerCase().includes(normalizedSearch) ||
+        userItem.role.toLowerCase().includes(normalizedSearch) ||
+        (userItem.phone || "").includes(search)
+      );
+    });
+  }, [search, users]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -96,12 +115,28 @@ export default function UsersScreen() {
             onChangeText={setSearch}
           />
 
-          <TouchableOpacity style={styles.addButton}>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => navigation.navigate('Register', { role: 'customer' })}
+          >
             <Text style={styles.addButtonText}>
               + Add User
             </Text>
           </TouchableOpacity>
         </View>
+
+        {error ? (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
+
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color="#2563EB" />
+            <Text style={styles.loadingText}>Loading users...</Text>
+          </View>
+        ) : null}
 
         {/* TABLE */}
 
@@ -133,26 +168,26 @@ export default function UsersScreen() {
 
           {/* TABLE ROWS */}
 
-          {filteredUsers.map((user) => (
-            <View key={user.id} style={styles.tableRow}>
+          {filteredUsers.map((userItem) => (
+            <View key={userItem.id} style={styles.tableRow}>
               <Text
                 style={[styles.tableCell, styles.nameColumn]}
               >
-                {user.name}
+                {userItem.name}
               </Text>
 
               <Text style={styles.tableCell}>
-                {user.role}
+                {userItem.role}
               </Text>
 
               <Text style={styles.tableCell}>
-                {user.phone}
+                {userItem.phone || '—'}
               </Text>
 
               <View
                 style={[
                   styles.statusBadge,
-                  user.status === "Active"
+                  userItem.is_active
                     ? styles.activeBadge
                     : styles.inactiveBadge,
                 ]}
@@ -161,14 +196,13 @@ export default function UsersScreen() {
                   style={[
                     styles.statusText,
                     {
-                      color:
-                        user.status === "Active"
-                          ? "#16a34a"
-                          : "#dc2626",
+                      color: userItem.is_active
+                        ? '#16a34a'
+                        : '#dc2626',
                     },
                   ]}
                 >
-                  {user.status}
+                  {userItem.is_active ? 'Active' : 'Inactive'}
                 </Text>
               </View>
 
@@ -177,14 +211,13 @@ export default function UsersScreen() {
               <View style={styles.actionsContainer}>
                 <TouchableOpacity
                   style={styles.iconButton}
+                  onPress={() =>
+                    handleToggleStatus(userItem.id, userItem.is_active)
+                  }
                 >
-                  <Text style={styles.iconText}>✎</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.iconButton}
-                >
-                  <Text style={styles.iconText}>🗑</Text>
+                  <Text style={styles.iconText}>
+                    {userItem.is_active ? '⛔' : '✔️'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -437,6 +470,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: "#475569",
+  },
+
+  errorBanner: {
+    backgroundColor: "#fee2e2",
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 16,
+  },
+
+  loadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: "#eff6ff",
+    marginBottom: 16,
+  },
+
+  loadingText: {
+    marginLeft: 10,
+    color: "#1d4ed8",
+    fontSize: 14,
+  },
+
+  errorText: {
+    color: "#b91c1c",
+    fontSize: 14,
   },
 
   /* DASHBOARD BUTTON */

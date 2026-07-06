@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useMemo, useState } from "react";
-import { loginPassword } from "../api";
+import { loginPassword, loginBiometric } from "../api";
 import type { AuthUser, UserRole } from "../types";
 
 type AuthContextType = {
   user: AuthUser | null;
   login: (email: string, password: string) => Promise<AuthUser>;
+  loginWithBiometric: (userId: string, biometricHash: string) => Promise<AuthUser>;
   logout: () => void;
 };
 
@@ -18,6 +19,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const authUser: AuthUser = {
       id: response.user.id,
       role: response.user.role as UserRole,
+      name: response.user.name,
+      email,
+      token: response.token,
+    };
+    setUser(authUser);
+    return authUser;
+  };
+
+  const loginWithBiometric = async (userIdentifier: string, biometricHash: string) => {
+    const response = await loginBiometric(userIdentifier, biometricHash);
+    const authUser: AuthUser = {
+      id: response.user.id,
+      role: response.user.role as UserRole,
+      name: response.user.name,
+      email: response.user.email,
       token: response.token,
     };
     setUser(authUser);
@@ -29,7 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const value = useMemo(
-    () => ({ user, login, logout }),
+    () => ({ user, login, loginWithBiometric, logout }),
     [user]
   );
 

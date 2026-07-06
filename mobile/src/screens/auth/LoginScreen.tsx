@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,13 +6,18 @@ import {
   SafeAreaView,
   Dimensions,
   TouchableOpacity,
+  Alert,
+  ScrollView,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import * as LocalAuthentication from "expo-local-authentication";
 import InputField from "../../components/InputField";
 import PrimaryButton from "../../components/PrimaryButton";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useAuth } from "../../context/AuthContext";
 import { RootStackParamList } from "../../types";
+import { DeviceSize, FontSize, Spacing, ResponsiveDimensions } from "../../utils/responsive";
 
 type LoginProps = NativeStackScreenProps<
   RootStackParamList,
@@ -34,7 +39,23 @@ export default function LoginScreen({
   });
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { login } = useAuth();
+  const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
+  const { login, loginWithBiometric } = useAuth();
+
+  useEffect(() => {
+    checkBiometricAvailability();
+  }, []);
+
+  const checkBiometricAvailability = async () => {
+    try {
+      const compatible = await LocalAuthentication.hasHardwareAsync();
+      const enrolled = await LocalAuthentication.isEnrolledAsync();
+      setIsBiometricAvailable(compatible && enrolled);
+    } catch (error) {
+      console.log("Biometric check error:", error);
+      setIsBiometricAvailable(false);
+    }
+  };
 
   const handleLogin = async () => {
     if (!loginData.email || !loginData.password) {
@@ -46,18 +67,8 @@ export default function LoginScreen({
     setIsSubmitting(true);
 
     try {
-      const authUser = await login(loginData.email, loginData.password);
-      const destination =
-        authUser.role === "admin"
-          ? "AdminDashboard"
-          : authUser.role === "courier"
-          ? "Dashboard"
-          : "CustomerDashboard";
-
-      navigation.reset({
-        index: 0,
-        routes: [{ name: destination }],
-      });
+      await login(loginData.email, loginData.password);
+      // AppNavigator automatically switches stacks when user state updates
     } catch (error: any) {
       setMessage(error?.message || "Login failed. Please try again.");
     } finally {
@@ -65,8 +76,53 @@ export default function LoginScreen({
     }
   };
 
+  const handleBiometricLogin = async () => {
+    if (!isBiometricAvailable) {
+      Alert.alert(
+        "Biometric Not Available",
+        "Biometric authentication is not available on this device or no biometric is enrolled."
+      );
+      return;
+    }
+
+    if (!loginData.email) {
+      setMessage("Enter your email to complete biometric login.");
+      return;
+    }
+
+    setMessage("");
+    setIsSubmitting(true);
+
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        disableDeviceFallback: false,
+        fallbackLabel: "Use PIN",
+      });
+
+      if (!result.success) {
+        setMessage("Biometric authentication failed. Please try again.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      const biometricHash = "SIMULATED_HASH_VALUE";
+      await loginWithBiometric(loginData.email, biometricHash);
+      // AppNavigator automatically switches stacks when user state updates
+    } catch (error: any) {
+      setMessage(error?.message || "Biometric login failed.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const insets = useSafeAreaInsets();
+
   return (
     <SafeAreaView style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
       <View style={styles.card}>
         {/* Header */}
         <Text style={styles.title}>
@@ -109,7 +165,10 @@ export default function LoginScreen({
         </View>
 
         {/* Forgot Password */}
-        <TouchableOpacity style={styles.forgotContainer}>
+        <TouchableOpacity
+          style={styles.forgotContainer}
+          onPress={() => navigation.navigate('ResetPassword')}
+        >
           <Text style={styles.forgotText}>
             Forgot Password?
           </Text>
@@ -125,39 +184,31 @@ export default function LoginScreen({
         </View>
 
         {/* Divider */}
-        <Text style={styles.orText}>
-          or Login with Biometrics
-        </Text>
+        {isBiometricAvailable && (
+          <>
+            <Text style={styles.orText}>
+              or Login with Biometrics
+            </Text>
 
-        {/* Fingerprint Button */}
-        <TouchableOpacity
-          style={styles.biometricButton}
-          onPress={() =>
-            navigation.reset({
-              index: 0,
-              routes: [
-                {
-                  name: isAdmin
-                    ? "AdminDashboard"
-                    : isCustomer
-                    ? "CustomerDashboard"
-                    : "Dashboard",
-                },
-              ],
-            })
-          }
-        >
-          <Ionicons
-            name="finger-print"
-            size={48}
-            color="#2563EB"
-          />
-        </TouchableOpacity>
+            {/* Fingerprint Button */}
+            <TouchableOpacity
+              style={styles.biometricButton}
+              onPress={handleBiometricLogin}
+              disabled={isSubmitting}
+            >
+              <Ionicons
+                name="finger-print"
+                size={48}
+                color={isSubmitting ? "#CBD5E1" : "#2563EB"}
+              />
+            </TouchableOpacity>
+          </>
+        )}
 
         {/* Register */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            Don’t have an account?
+            Don't have an account?
           </Text>
 
           <TouchableOpacity
@@ -179,6 +230,7 @@ export default function LoginScreen({
           </Text>
         ) : null}
       </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -187,17 +239,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F3F4F6",
+  },
+
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 20,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
   },
 
   card: {
-    width: width > 500 ? 430 : "100%",
+    width: ResponsiveDimensions.cardWidth,
     backgroundColor: "#FFFFFF",
     borderRadius: 20,
-    paddingHorizontal: 24,
-    paddingVertical: 30,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.xl,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -209,44 +266,44 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    fontSize: 24,
+    fontSize: FontSize["2xl"],
     fontWeight: "700",
     color: "#0F172A",
     textAlign: "center",
-    marginBottom: 6,
+    marginBottom: Spacing.sm,
   },
 
   subtitle: {
-    fontSize: 14,
+    fontSize: FontSize.base,
     color: "#64748B",
     textAlign: "center",
-    marginBottom: 28,
+    marginBottom: Spacing.lg,
   },
 
   inputWrapper: {
-    marginBottom: 14,
+    marginBottom: Spacing.md,
   },
 
   forgotContainer: {
     alignItems: "flex-start",
-    marginBottom: 18,
+    marginBottom: Spacing.lg,
   },
 
   forgotText: {
-    fontSize: 13,
+    fontSize: FontSize.sm,
     color: "#2563EB",
     fontWeight: "500",
   },
 
   buttonContainer: {
-    marginBottom: 22,
+    marginBottom: Spacing.lg,
   },
 
   orText: {
     textAlign: "center",
-    fontSize: 13,
+    fontSize: FontSize.sm,
     color: "#6B7280",
-    marginBottom: 20,
+    marginBottom: Spacing.lg,
   },
 
   biometricButton: {
@@ -259,7 +316,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     alignSelf: "center",
     backgroundColor: "#F8FAFC",
-    marginBottom: 26,
+    marginBottom: Spacing.xl,
   },
 
   footer: {
@@ -269,12 +326,12 @@ const styles = StyleSheet.create({
   },
 
   footerText: {
-    fontSize: 13,
+    fontSize: FontSize.sm,
     color: "#6B7280",
   },
 
   registerText: {
-    fontSize: 13,
+    fontSize: FontSize.sm,
     fontWeight: "600",
     color: "#2563EB",
   },
@@ -282,7 +339,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: "red",
     textAlign: "center",
-    marginTop: 16,
-    fontSize: 13,
+    marginTop: Spacing.lg,
+    fontSize: FontSize.sm,
   },
 });

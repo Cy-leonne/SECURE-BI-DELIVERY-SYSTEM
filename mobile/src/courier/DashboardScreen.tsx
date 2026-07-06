@@ -17,6 +17,7 @@ import { RootStackParamList } from "../types";
 import { todayDeliveries } from "../data/mockDeliveries";
 import { useAuth } from "../context/AuthContext";
 import { getCourierDeliveries, getAvailableDeliveries, scanDelivery, assignDelivery, CourierDelivery } from "../api";
+import { FontSize, Spacing, ResponsiveDimensions } from "../utils/responsive";
 
 const { width } = Dimensions.get("window");
 
@@ -30,6 +31,7 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(false);
   const [scanResult, setScanResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"Dashboard" | "Deliveries" | "Scan" | "Profile">("Dashboard");
 
   useEffect(() => {
     if (!user?.token || !user?.id) {
@@ -86,12 +88,17 @@ export default function DashboardScreen() {
       return Alert.alert("Authentication required", "Please log in to accept deliveries.");
     }
 
+    const courierId = user.id;
+    if (!courierId || typeof courierId !== "string") {
+      return Alert.alert("Unable to assign delivery", "Courier identity is missing. Please re-login and try again.");
+    }
+
     try {
-      await assignDelivery(user.token, deliveryId, user.id);
+      await assignDelivery(user.token, deliveryId, courierId);
       Alert.alert("Success", "Delivery assigned to you!");
       // Reload available and assigned deliveries
       const [assignedRes, availableRes] = await Promise.all([
-        getCourierDeliveries(user.token, user.id),
+        getCourierDeliveries(user.token, courierId),
         getAvailableDeliveries(user.token),
       ]);
       setBackendDeliveries(assignedRes.deliveries);
@@ -100,6 +107,49 @@ export default function DashboardScreen() {
       Alert.alert("Unable to accept delivery", acceptError.message || "Please try again.");
     }
   };
+
+  const tabItems = [
+    {
+      key: "Dashboard" as const,
+      label: "Dashboard",
+      icon: "home-outline",
+      activeIcon: "home",
+      onPress: () => {
+        setActiveTab("Dashboard");
+        navigation.navigate("Dashboard");
+      },
+    },
+    {
+      key: "Deliveries" as const,
+      label: "Deliveries",
+      icon: "cube-outline",
+      activeIcon: "cube",
+      onPress: () => {
+        setActiveTab("Deliveries");
+        navigation.navigate("Deliveries");
+      },
+    },
+    {
+      key: "Scan" as const,
+      label: "Scan",
+      icon: "scan-outline",
+      activeIcon: "scan",
+      onPress: () => {
+        setActiveTab("Scan");
+        handleScan();
+      },
+    },
+    {
+      key: "Profile" as const,
+      label: "Profile",
+      icon: "person-outline",
+      activeIcon: "person",
+      onPress: () => {
+        setActiveTab("Profile");
+        navigation.navigate("Profile");
+      },
+    },
+  ];
 
   const recentDeliveries = backendDeliveries?.length
     ? backendDeliveries.map((item) => ({
@@ -124,174 +174,185 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>Hello, John Courier</Text>
-            <Text style={styles.subGreeting}>Good morning!</Text>
-          </View>
-          <View style={styles.avatarContainer}>
-            <Ionicons name="person" size={28} color="#2563EB" />
-          </View>
-        </View>
-
-        {error ? (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : null}
-
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color="#2563EB" />
-            <Text style={styles.loadingText}>Syncing deliveries...</Text>
-          </View>
-        ) : null}
-
-        <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
-            <View style={[styles.iconBox, { backgroundColor: "#FEF3C7" }]}> 
-              <Ionicons name="cube" size={18} color="#D97706" />
+      <View style={styles.contentWrapper}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.greeting}>
+                Hello, {user?.name ? user.name : "Courier"}
+              </Text>
+              <Text style={styles.subGreeting}>Good morning!</Text>
             </View>
-            <Text style={styles.statNumber}>{assignedCount}</Text>
-            <Text style={styles.statLabel}>Assigned</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <View style={[styles.iconBox, { backgroundColor: "#DCFCE7" }]}> 
-              <Ionicons name="checkmark-circle" size={18} color="#16A34A" />
+            <View style={styles.avatarContainer}>
+              <Ionicons name="person" size={28} color="#2563EB" />
             </View>
-            <Text style={styles.statNumber}>{deliveredCount}</Text>
-            <Text style={styles.statLabel}>Delivered</Text>
           </View>
 
-          <View style={styles.statCard}>
-            <View style={[styles.iconBox, { backgroundColor: "#DBEAFE" }]}> 
-              <Ionicons name="car" size={18} color="#2563EB" />
+          {error ? (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorText}>{error}</Text>
             </View>
-            <Text style={styles.statNumber}>{inProgressCount}</Text>
-            <Text style={styles.statLabel}>In Progress</Text>
-          </View>
+          ) : null}
 
-          <View style={styles.statCard}>
-            <View style={[styles.iconBox, { backgroundColor: "#FEE2E2" }]}> 
-              <Ionicons name="close-circle" size={18} color="#DC2626" />
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#2563EB" />
+              <Text style={styles.loadingText}>Syncing deliveries...</Text>
             </View>
-            <Text style={styles.statNumber}>1</Text>
-            <Text style={styles.statLabel}>Failed</Text>
+          ) : null}
+
+          <View style={styles.statsGrid}>
+            <View style={styles.statCard}>
+              <View style={[styles.iconBox, { backgroundColor: "#FEF3C7" }]}> 
+                <Ionicons name="cube" size={18} color="#D97706" />
+              </View>
+              <Text style={styles.statNumber}>{assignedCount}</Text>
+              <Text style={styles.statLabel}>Assigned</Text>
+            </View>
+
+            <View style={styles.statCard}>
+              <View style={[styles.iconBox, { backgroundColor: "#DCFCE7" }]}> 
+                <Ionicons name="checkmark-circle" size={18} color="#16A34A" />
+              </View>
+              <Text style={styles.statNumber}>{deliveredCount}</Text>
+              <Text style={styles.statLabel}>Delivered</Text>
+            </View>
+
+            <View style={styles.statCard}>
+              <View style={[styles.iconBox, { backgroundColor: "#DBEAFE" }]}> 
+                <Ionicons name="car" size={18} color="#2563EB" />
+              </View>
+              <Text style={styles.statNumber}>{inProgressCount}</Text>
+              <Text style={styles.statLabel}>In Progress</Text>
+            </View>
+
+            <View style={styles.statCard}>
+              <View style={[styles.iconBox, { backgroundColor: "#FEE2E2" }]}> 
+                <Ionicons name="close-circle" size={18} color="#DC2626" />
+              </View>
+              <Text style={styles.statNumber}>1</Text>
+              <Text style={styles.statLabel}>Failed</Text>
+            </View>
           </View>
-        </View>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Available Deliveries</Text>
-        </View>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Available Deliveries</Text>
+          </View>
 
-        {availableDeliveries && availableDeliveries.length > 0 ? (
+          {availableDeliveries && availableDeliveries.length > 0 ? (
+            <View style={styles.deliveryContainer}>
+              {availableDeliveries.slice(0, 3).map((item) => (
+                <View key={item.id} style={styles.deliveryCard}>
+                  <View style={styles.deliveryLeft}>
+                    <View style={styles.deliveryIcon}> 
+                      <MaterialIcons name="local-shipping" size={18} color="#2563EB" />
+                    </View>
+                    <View>
+                      <Text style={styles.deliveryId}>{item.trackingNo}</Text>
+                      <Text style={styles.deliveryName}>Pending Pickup</Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.acceptButton}
+                    onPress={() => handleAcceptDelivery(item.id)}
+                  >
+                    <Text style={styles.acceptButtonText}>Accept</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>No available deliveries</Text>
+            </View>
+          )}
+
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recent Deliveries</Text>
+            <TouchableOpacity onPress={() => navigation.navigate("Deliveries")}> 
+              <Text style={styles.viewAll}>View All</Text>
+            </TouchableOpacity>
+          </View>
+
           <View style={styles.deliveryContainer}>
-            {availableDeliveries.slice(0, 3).map((item) => (
-              <View key={item.id} style={styles.deliveryCard}>
+            {recentDeliveries.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.deliveryCard}
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate("DeliveryDetails", { orderId: item.orderId })}
+              >
                 <View style={styles.deliveryLeft}>
                   <View style={styles.deliveryIcon}> 
                     <MaterialIcons name="local-shipping" size={18} color="#2563EB" />
                   </View>
                   <View>
-                    <Text style={styles.deliveryId}>{item.trackingNo}</Text>
-                    <Text style={styles.deliveryName}>Pending Pickup</Text>
+                    <Text style={styles.deliveryId}>{item.orderId}</Text>
+                    <Text style={styles.deliveryName}>{item.recipient}</Text>
                   </View>
                 </View>
-                <TouchableOpacity
-                  style={styles.acceptButton}
-                  onPress={() => handleAcceptDelivery(item.id)}
-                >
-                  <Text style={styles.acceptButtonText}>Accept</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
-        ) : (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No available deliveries</Text>
-          </View>
-        )}
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent Deliveries</Text>
-          <TouchableOpacity onPress={() => navigation.navigate("Deliveries")}> 
-            <Text style={styles.viewAll}>View All</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.deliveryContainer}>
-          {recentDeliveries.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={styles.deliveryCard}
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate("DeliveryDetails", { orderId: item.orderId })}
-            >
-              <View style={styles.deliveryLeft}>
-                <View style={styles.deliveryIcon}> 
-                  <MaterialIcons name="local-shipping" size={18} color="#2563EB" />
-                </View>
-                <View>
-                  <Text style={styles.deliveryId}>{item.orderId}</Text>
-                  <Text style={styles.deliveryName}>{item.recipient}</Text>
-                </View>
-              </View>
-              <View style={styles.deliveryRight}>
-                <Text style={styles.deliveryAddress}>{item.address}</Text>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    item.status === "Delivered" && styles.deliveredBadge,
-                    item.status === "Pending" && styles.pendingBadge,
-                    item.status === "In Progress" && styles.progressBadge,
-                  ]}
-                >
-                  <Text
+                <View style={styles.deliveryRight}>
+                  <Text style={styles.deliveryAddress}>{item.address}</Text>
+                  <View
                     style={[
-                      styles.statusText,
-                      item.status === "Delivered" && styles.deliveredText,
-                      item.status === "Pending" && styles.pendingText,
-                      item.status === "In Progress" && styles.progressText,
+                      styles.statusBadge,
+                      item.status === "Delivered" && styles.deliveredBadge,
+                      item.status === "Pending" && styles.pendingBadge,
+                      item.status === "In Progress" && styles.progressBadge,
                     ]}
                   >
-                    {item.status}
-                  </Text>
+                    <Text
+                      style={[
+                        styles.statusText,
+                        item.status === "Delivered" && styles.deliveredText,
+                        item.status === "Pending" && styles.pendingText,
+                        item.status === "In Progress" && styles.progressText,
+                      ]}
+                    >
+                      {item.status}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {scanResult ? (
-          <View style={styles.scanResultBox}>
-            <Text style={styles.scanResultText}>{scanResult}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
-        ) : null}
 
-        <View style={styles.bottomNav}>
-          <TouchableOpacity style={styles.navItem}>
-            <Ionicons name="home" size={22} color="#2563EB" />
-            <Text style={styles.activeNavText}>Dashboard</Text>
-          </TouchableOpacity>
+          {scanResult ? (
+            <View style={styles.scanResultBox}>
+              <Text style={styles.scanResultText}>{scanResult}</Text>
+            </View>
+          ) : null}
+        </ScrollView>
 
-          <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("Deliveries")}> 
-            <Ionicons name="cube-outline" size={22} color="#6B7280" />
-            <Text style={styles.navText}>Deliveries</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.navItem} onPress={handleScan}> 
-            <Ionicons name="scan-outline" size={22} color="#6B7280" />
-            <Text style={styles.navText}>Scan</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("Profile")}> 
-            <Ionicons name="person-outline" size={22} color="#6B7280" />
-            <Text style={styles.navText}>Profile</Text>
-          </TouchableOpacity>
+        <View style={styles.bottomNavContainer}>
+          <View style={styles.bottomNav}>
+            {tabItems.map((tab) => {
+              const isActive = activeTab === tab.key;
+              return (
+                <TouchableOpacity
+                  key={tab.key}
+                  style={[styles.navItem, isActive && styles.navItemActive]}
+                  onPress={tab.onPress}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.navIconWrapper, isActive && styles.navIconWrapperActive]}>
+                    <Ionicons
+                      name={isActive ? tab.activeIcon : tab.icon}
+                      size={24}
+                      color={isActive ? "#2563EB" : "#6B7280"}
+                    />
+                  </View>
+                  <Text style={isActive ? styles.activeNavText : styles.navText}>{tab.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -302,28 +363,37 @@ const styles = StyleSheet.create({
     backgroundColor: "#F3F4F6",
   },
 
+  scrollView: {
+    flex: 1,
+  },
+
+  contentWrapper: {
+    flex: 1,
+  },
+
   scrollContent: {
-    padding: 20,
+    padding: Spacing.lg,
     paddingBottom: 120,
+    minHeight: "100%",
   },
 
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: Spacing.xl,
   },
 
   greeting: {
-    fontSize: 24,
+    fontSize: FontSize["2xl"],
     fontWeight: "700",
     color: "#111827",
   },
 
   subGreeting: {
-    fontSize: 14,
+    fontSize: FontSize.base,
     color: "#6B7280",
-    marginTop: 4,
+    marginTop: Spacing.xs,
   },
 
   avatarContainer: {
@@ -338,40 +408,40 @@ const styles = StyleSheet.create({
   errorBanner: {
     backgroundColor: "#fee2e2",
     borderRadius: 14,
-    padding: 14,
-    marginBottom: 16,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
   },
 
   errorText: {
     color: "#b91c1c",
-    fontSize: 14,
+    fontSize: FontSize.base,
   },
 
   loadingContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: Spacing.md,
   },
 
   loadingText: {
-    marginLeft: 10,
+    marginLeft: Spacing.md,
     color: "#2563EB",
   },
 
   statsGrid: {
-    flexDirection: width > 600 ? "row" : "row",
+    flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    marginBottom: 28,
+    marginBottom: Spacing.xl,
   },
 
   statCard: {
-    width: width > 600 ? "23%" : "48%",
+    width: "48%",
     backgroundColor: "#FFFFFF",
     borderRadius: 18,
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-    marginBottom: 16,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -388,18 +458,18 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 14,
+    marginBottom: Spacing.md,
   },
 
   statNumber: {
-    fontSize: 24,
+    fontSize: FontSize["2xl"],
     fontWeight: "700",
     color: "#111827",
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
 
   statLabel: {
-    fontSize: 13,
+    fontSize: FontSize.sm,
     color: "#6B7280",
   },
 
@@ -407,30 +477,30 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 18,
+    marginBottom: Spacing.md,
   },
 
   sectionTitle: {
-    fontSize: 18,
+    fontSize: FontSize.xl,
     fontWeight: "700",
     color: "#111827",
   },
 
   viewAll: {
     color: "#2563EB",
-    fontSize: 14,
+    fontSize: FontSize.sm,
     fontWeight: "600",
   },
 
   deliveryContainer: {
-    marginBottom: 30,
+    marginBottom: Spacing.xl,
   },
 
   deliveryCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
-    padding: 16,
-    marginBottom: 14,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -457,19 +527,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#DBEAFE",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: Spacing.md,
   },
 
   deliveryId: {
-    fontSize: 15,
+    fontSize: FontSize.base,
     fontWeight: "700",
     color: "#111827",
   },
 
   deliveryName: {
-    fontSize: 13,
+    fontSize: FontSize.sm,
     color: "#6B7280",
-    marginTop: 2,
+    marginTop: Spacing.xs,
   },
 
   deliveryRight: {
@@ -477,14 +547,14 @@ const styles = StyleSheet.create({
   },
 
   deliveryAddress: {
-    fontSize: 12,
+    fontSize: FontSize.xs,
     color: "#6B7280",
-    marginBottom: 8,
+    marginBottom: Spacing.md,
   },
 
   statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
     borderRadius: 10,
   },
 
@@ -501,7 +571,7 @@ const styles = StyleSheet.create({
   },
 
   statusText: {
-    fontSize: 12,
+    fontSize: FontSize.xs,
     fontWeight: "600",
   },
 
@@ -519,72 +589,104 @@ const styles = StyleSheet.create({
 
   acceptButton: {
     backgroundColor: "#10B981",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
     borderRadius: 8,
   },
 
   acceptButtonText: {
     color: "#FFFFFF",
     fontWeight: "600",
-    fontSize: 12,
+    fontSize: FontSize.xs,
   },
 
   emptyState: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
-    padding: 24,
-    marginBottom: 30,
+    padding: Spacing.xl,
+    marginBottom: Spacing.xl,
     justifyContent: "center",
     alignItems: "center",
   },
 
   emptyText: {
     color: "#6B7280",
-    fontSize: 14,
+    fontSize: FontSize.base,
   },
 
   scanResultBox: {
     backgroundColor: "#eef2ff",
-    padding: 14,
+    padding: Spacing.md,
     borderRadius: 14,
-    marginBottom: 16,
+    marginBottom: Spacing.md,
   },
 
   scanResultText: {
     color: "#1d4ed8",
-    fontSize: 14,
+    fontSize: FontSize.base,
+  },
+
+  bottomNavContainer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.sm,
+    backgroundColor: "transparent",
   },
 
   bottomNav: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 80,
+    height: 86,
     backgroundColor: "#FFFFFF",
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
-    borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
-    paddingBottom: 10,
+    borderRadius: 28,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 8,
+    paddingHorizontal: 12,
   },
 
   navItem: {
     alignItems: "center",
+    justifyContent: "center",
+    flex: 1,
+    paddingVertical: Spacing.sm,
+  },
+
+  navItemActive: {
+    backgroundColor: "#EFF6FF",
+    borderRadius: 18,
+  },
+
+  navIconWrapper: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: "#F8FAFC",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: Spacing.xs,
+  },
+
+  navIconWrapperActive: {
+    backgroundColor: "#DBEAFE",
   },
 
   navText: {
-    fontSize: 12,
+    fontSize: FontSize.xs,
     color: "#6B7280",
-    marginTop: 4,
+    marginTop: Spacing.xs,
   },
 
   activeNavText: {
-    fontSize: 12,
+    fontSize: FontSize.xs,
     color: "#2563EB",
-    marginTop: 4,
-    fontWeight: "600",
+    marginTop: Spacing.xs,
+    fontWeight: "700",
   },
 });

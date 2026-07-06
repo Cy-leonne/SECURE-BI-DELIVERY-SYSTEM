@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Attach to Expo Metro",
+      "type": "pwa-node",
+      "request": "attach",
+      "port": 19001,
+      "address": "localhost",
+      "restart": true,
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ],
+  "compounds": []
+}

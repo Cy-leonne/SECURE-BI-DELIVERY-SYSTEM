@@ -11,11 +11,13 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { RootStackParamList } from "../types";
+import { useAuth } from "../context/AuthContext";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "Profile">;
 
 export default function CustomerProfileScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { logout } = useAuth();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -83,7 +85,14 @@ export default function CustomerProfileScreen() {
 
         <TouchableOpacity
           style={styles.logoutButton}
-          onPress={() => navigation.reset({ index: 0, routes: [{ name: "Role" }] })}
+          onPress={() => {
+            // clear auth and return to Role screen in the unauthenticated stack
+            logout();
+            // defer navigation reset slightly so the provider can update
+            setTimeout(() => {
+              navigation.reset({ index: 0, routes: [{ name: "Role" }] });
+            }, 50);
+          }}
         >
           <Ionicons name="log-out" size={20} color="#FFF" style={{ marginRight: 8 }} />
           <Text style={styles.logoutText}>Logout</Text>

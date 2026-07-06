@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   SafeAreaView,
   View,
@@ -6,11 +6,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../types";
-import { todayDeliveries } from "../data/mockDeliveries";
+import { useAuth } from "../context/AuthContext";
+import { getDeliveryByTracking, getProofOfDelivery, LabProofOfDelivery } from "../api";
 import { Ionicons } from "@expo/vector-icons";
 
 type RouteProps = RouteProp<RootStackParamList, "ProofOfDelivery">;
@@ -22,12 +24,48 @@ type NavigationProp = NativeStackNavigationProp<
 export default function ProofOfDeliveryScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
-
+  const { user } = useAuth();
   const { orderId } = route.params;
 
-  const delivery =
-    todayDeliveries.find((item) => item.orderId === orderId) ??
-    todayDeliveries[0];
+  const [pod, setPod] = useState<LabProofOfDelivery | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [trackingName, setTrackingName] = useState(orderId);
+
+  useEffect(() => {
+    if (!user?.token) return;
+
+    let active = true;
+    const loadPod = async () => {
+      setLoading(true);
+      try {
+        const delivery = await getDeliveryByTracking(user.token, orderId);
+        if (!delivery?.id) {
+          throw new Error("Delivery not found.");
+        }
+
+        const podResult = await getProofOfDelivery(user.token, delivery.id);
+        if (active) {
+          setPod(podResult);
+          setTrackingName(delivery.trackingNo || orderId);
+          setError(null);
+        }
+      } catch (fetchError: any) {
+        if (active) {
+          setError(fetchError.message || "Unable to load proof of delivery.");
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    loadPod();
+    return () => {
+      active = false;
+    };
+  }, [orderId, user?.token]);
+
+  const createdAt = pod?.timestamp ? new Date(pod.timestamp).toLocaleString() : "N/A";
 
   return (
     <SafeAreaView style={styles.container}>
@@ -38,61 +76,46 @@ export default function ProofOfDeliveryScreen() {
         <Text style={styles.title}>Proof of Delivery</Text>
 
         <View style={styles.successCircle}>
-          <Ionicons
-            name="checkmark"
-            size={70}
-            color="#16a34a"
-          />
+          <Ionicons name="checkmark" size={70} color="#16a34a" />
         </View>
 
-        <Text style={styles.completedText}>
-          Delivery Completed
-        </Text>
+        <Text style={styles.completedText}>Delivery Completed</Text>
 
         <View style={styles.card}>
           <View style={styles.row}>
             <Text style={styles.label}>Order ID</Text>
-            <Text style={styles.value}>{delivery.orderId}</Text>
+            <Text style={styles.value}>{trackingName}</Text>
           </View>
-
           <View style={styles.row}>
-            <Text style={styles.label}>Recipient</Text>
-            <Text style={styles.value}>{delivery.recipient}</Text>
+            <Text style={styles.label}>Recipient ID</Text>
+            <Text style={styles.value}>{pod?.recipientId ?? "Unknown"}</Text>
           </View>
-
-          <View style={styles.row}>
-            <Text style={styles.label}>Delivered By</Text>
-            <Text style={styles.value}>John Courier</Text>
-          </View>
-
-          <View style={styles.row}>
-            <Text style={styles.label}>Date & Time</Text>
-            <Text style={styles.value}>26 May 2026, 10:35 AM</Text>
-          </View>
-
-          <View style={styles.row}>
-            <Text style={styles.label}>Location</Text>
-            <Text style={styles.value}>{delivery.address}</Text>
-          </View>
-
           <View style={styles.row}>
             <Text style={styles.label}>Verification</Text>
-            <Text style={styles.value}>Face Verified</Text>
+            <Text style={styles.value}>{pod?.verified ? "Recipient Verified" : "Not Verified"}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Timestamp</Text>
+            <Text style={styles.value}>{createdAt}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Confirmed by</Text>
+            <Text style={styles.value}>{user?.name ?? "Courier"}</Text>
           </View>
         </View>
 
+        {loading ? (
+          <ActivityIndicator size="large" color="#2563eb" style={{ marginTop: 16 }} />
+        ) : error ? (
+          <Text style={[styles.description, { color: "#dc2626" }]}>{error}</Text>
+        ) : null}
+
         <TouchableOpacity style={styles.shareButton}>
-          <Text style={styles.shareButtonText}>
-            View / Share Proof
-          </Text>
+          <Text style={styles.shareButtonText}>View / Share Proof</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => navigation.navigate("Dashboard")}
-        >
-          <Text style={styles.backText}>
-            Back to Dashboard
-          </Text>
+        <TouchableOpacity onPress={() => navigation.navigate("Dashboard")}> 
+          <Text style={styles.backText}>Back to Dashboard</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
